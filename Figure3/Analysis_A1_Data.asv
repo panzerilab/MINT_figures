@@ -1,0 +1,156 @@
+clc, clear all
+% Load the stimuli and choices across trials
+load('Data_A1/current_analysis/metadata.mat');
+deconv_type = 1; type_data = 2; bin_size = 10;
+load(['Data_A1/current_analysis/significant_neurons_sliding_window_',num2str(bin_size),'tp.mat'],'significant_neurons');
+load(['Data_A1/spk_trains/DFF_spktrain_alltrials.mat'],'spike_train_alltrials');
+load(['Data_A1/current_analysis/preprocessed_spk_input_data.mat'],'spike_train_sig_cells_peak_info_ind');
+
+% -------------------------------------------------------------------------
+% Step 1: Prepare Data and initialize opts
+% -------------------------------------------------------------------------
+pop_size_list = 1:19;
+max_combinations = 100;
+nSessions = 34;
+nan_trials_in_spike_trains = cell(1,nSessions);
+for ind = 1:nSessions
+    if  length(significant_neurons{ind}) > 20
+        c_vec            = metadata(ind,type_data).c_vec;
+        spike_train = spike_train_alltrials(ind,type_data,deconv_type).spike_train_alltrials(:,c_vec' ~= 0,:);
+        nan_trials_in_spike_trains{ind} = find((sum(sum(isnan(spike_train),1),3)));
+    end
+end
+
+
+MI_opts.bias = 'shuffSub';
+MI_opts.shuff = 30;
+MI_opts.bin_method = {'none', 'none'};
+MI_opts.n_bins = {2};
+MI_opts.computeNulldist = false;
+MI_opts.supressWarnings = true;
+
+II_opts.bin_method = {'none', 'none', 'none'};
+II_opts.n_bins = {2};
+II_opts.bias = 'shuffSub';
+II_opts.shuff = 30;
+II_opts.supressWarnings = true;
+
+% Parameters for computing the SVM
+opts = [];
+opts.optimize_params = false;
+opts.parallel_optim = true;
+opts.hp_C  = 1;
+opts.cv_type = "KFold";
+nfolds = 2;
+opts.K = nfolds;
+opts.svm_family = 'RBF';
+opts.libsvm = false;
+opts.supressWarnings = true;
+
+% -------------------------------------------------------------------------
+% Step 2: Compute the information about stimulus and choice variables
+% -------------------------------------------------------------------------
+
+SI_CI_info = NaN(1,nSessions);
+for sess = 1:nSessions
+    if  length(significant_neurons{sess}) > 20
+        S  = metadata(sess,type_data).stimulus_vector;
+        C   = metadata(sess,type_data).choice_vector;
+        S(nan_trials_in_spike_trains{sess}) = [];
+        C(nan_trials_in_spike_trains{sess}) = [];
+        SI_CI_info(sess) = cell2mat(MI({S, C},{'I(A;B)'}, MI_opts));
+    end
+end
+
+% -------------------------------------------------------------------------
+% Step 3: Compute the mutual and intersection information at the population level
+% -------------------------------------------------------------------------
+% based on the decoded stimuli and choices obatined through the SVM analysis
+Nsessions = 0;
+
+avgSI_population = zeros(nSessions,length(pop_size_list), max_combinations);
+avgCI_population = zeros(nSessions,length(pop_size_list), max_combinations);
+avgII_population = zeros(nSessions,length(pop_size_list), max_combinations);
+
+
+
+for ind = 1:nSessions
+    if  length(significant_neurons{ind}) > 20
+        ind
+        field_name = sprintf('session_%d', ind);
+        S = metadata(ind,type_data).stimulus_vector;
+        S(nan_trials_in_spike_trains{ind}) = [];
+        C   = metadata(ind,type_data).choice_vector;
+        C(nan_trials_in_spike_trains{ind}) = [];
+        R = spike_train_sig_cells_peak_info_ind{ind};
+        R(nan_trials_in_spike_trains{ind},:) = [];
+        R_binned = ((R > 0) + (R > 1))';
+        cvPartition = cvpartition(S, 'KFold', nfolds);
+        avgSI_tmp = zeros(length(pop_size_list), max_combinations);
+        avgCI_tmp = zeros(length(pop_size_list), max_combinations);
+        avgII_tmp = zeros(length(pop_size_list), max_combinations);
+
+        avgSI_tmp_1 = zeros(length(pop_size_list), 20);
+        avgCI_tmp_1 = zeros(length(pop_size_list), 20);
+        avgII_tmp_1 = zeros(length(pop_size_list), 20);
+        for pop_size_idx = 1:length(pop_size_list)
+            pop_size_idx
+
+
+            allset_elements = nchoosek(1:20,pop_size_list(pop_size_idx));
+            idx_selected_combinations = randperm(length(allset_elements));
+            if (length(idx_selected_combinations)<max_combinations) && pop_size_list(pop_size_idx)<20
+                select_allset_elements = allset_elements(idx_selected_combinations,:);
+            elseif pop_size_list(pop_size_idx)==20
+                select_allset_elements = allset_elements(idx_selected_combinations);
+            else
+                select_allset_elements = allset_elements(idx_selected_combinations(1:max_combinations),:);
+            end
+            number_of_partitions = cvPartition.NumTestSets;
+            avgSI_pop_partitions = zeros(1,max_combinations, number_of_partitions);
+            avgCI_pop_partitions = zeros(1,max_combinations, number_of_partitions);
+            avgII_pop_partitions = zeros(1,max_combinations, number_of_partitions);
+
+            parfor sample = 1:min(max_combinations, length(idx_selected_combinations))
+                data = R(:,select_allset_elements(sample, 1:pop_size_list(pop_size_idx)));
+                SI_pop_partitions = zeros(1,number_of_partitions);
+                CI_pop_partitions = zeros(1,number_of_partitions);
+                II_pop_partitions = zeros(1,number_of_partitions);
+
+                for l = 1:cvPartition.NumTestSets
+                    test_idxs = find(cvPartition.test(l));
+
+                    stim_choice = reduce_dim([S; C],1);
+                    [stimchoice_vector_decoded, ~, ~, ~, ~, W] = svm_pipeline(double(data),stim_choice',test_idxs, opts);
+
+                    % Decode the stimuli and compute the information of the decoded stimuli compared to the actual stimuli
+                    [S_decoded, ~, ~, ~, ~] = svm_pipeline(double(data),S,test_idxs, opts);
+                    [SI_pop] = MI({S_decoded', S(test_idxs)},{'I(A;B)'}, MI_opts);
+                    SI_pop_partitions(l) = SI_pop{1};
+
+                    % Decode the choices and compute the information of the decoded choices compared to the actual choices
+                    [C_decoded, ~, ~, ~, ~] = svm_pipeline(double(data),C, test_idxs, opts);
+                    [CI_pop] = MI({C_decoded', C(test_idxs)}, {'I(A;B)'}, MI_opts);
+                    CI_pop_partitions(l) = CI_pop{1};
+
+                    % Decode BOTH stimuli and choices and compute the intersection information of the decoded stimuli AND with the actual stimuli and choices
+                    [II_value, ~, ~] = II({S(test_idxs), stimchoice_vector_decoded', C(test_idxs)},{'II(A,B,C)'}, II_opts);
+                    II_pop_partitions(l) = II_value{1};
+                end
+                avgSI_pop_partitions(1,sample,:,:)  = SI_pop_partitions;
+                avgCI_pop_partitions(1,sample,:,:)  = CI_pop_partitions;
+                avgII_pop_partitions(1,sample,:,:)  = II_pop_partitions;
+            end
+            avgSI_pop_tmp(pop_size_idx,:,:) = avgSI_pop_partitions;
+            avgCI_pop_tmp(pop_size_idx,:,:) = avgCI_pop_partitions;
+            avgII_pop_tmp(pop_size_idx,:,:) = avgII_pop_partitions;
+        end
+        Nsessions = [Nsessions, ind];
+        avgSI_pop_size_ind(ind,:,:,:) = avgSI_pop_tmp;
+        avgCI_pop_size_ind(ind,:,:,:) = avgCI_pop_tmp;
+        avgII_pop_size_ind(ind,:,:,:) = avgII_pop_tmp;
+    end
+end
+currentDateTime = datetime('now', 'Format', 'yyyy_MM_dd_HH_mm_ss');
+filename = sprintf('Figure3/Results/Simulation_Results_%s.mat', currentDateTime);
+save(filename);
