@@ -11,8 +11,8 @@ field_names = fieldnames(Hippocampus_data);
 % Define optional Inputs for MI and PID
 % ------------------------------------------------------------------------
 nShuff = 2;
-opts_MI.bias = 'qe';
-opts_MI.xtrp = 10;
+opts_MI.bias = 'shuffSub';
+opts_MI.shuff = 30;
 opts_MI.bin_method = {'none', 'none'};
 opts_MI.supressWarnings = true;
 
@@ -29,7 +29,7 @@ SVM_opts.optim_opts = optimization;
 
 outputs_MI = {'I(A;B)', 'Ilin(A;B)', 'Iss(A)', 'Ici(A;B)', 'Icd(A;B)'};
 outputs_PID = {'Joint','PID_atoms'};
-outputs_SVM = {'labels'};
+outputs_SVM = {'labels', 'testIdx'};
 outputs_popMI = {'I(A;B)'};
 
 % Info breakdown opts
@@ -52,7 +52,7 @@ for i = 1:length(field_names)
     pairlist = nchoosek(1:nNeurons,2);
     MI_v = cell(length(pairlist), 5);
     PID_v = cell(length(pairlist), 5);
-    parfor pairi = 1:length(pairlist)
+   parfor pairi = 1:length(pairlist)
         cell1 = pairlist(pairi,1);
         cell2 = pairlist(pairi,2);
         resp1 = R(cell1,:);
@@ -72,55 +72,55 @@ for i = 1:length(field_names)
     end
     % -------------------------------------------------------------------------
     % Step 3: Compute Population Information with SVM Decoder
-        % -------------------------------------------------------------------------
+    % -------------------------------------------------------------------------
+    SVM_opts.svm_family = 'linear';
+    SVM_out = SVM({R,S}, outputs_SVM, SVM_opts);
+    S_p = SVM_out{1};
+    testIdx = SVM_out{2};
+    for l = 1:length(testIdx)
+        test_index = cell2mat(testIdx(l));
+        MI_partitions(l) = cell2mat(MI({S_p(test_index), S(test_index)},outputs_popMI,opts_MI));
+    end
+    MI_pop.(field_name).linear = MI_partitions;
+
+
+    SVM_opts.svm_family = 'RBF';
+    SVM_out = SVM({R,S}, outputs_SVM, SVM_opts);
+    S_p = SVM_out{1};
+    testIdx = SVM_out{2};
+    for l = 1:length(testIdx)
+        test_index = cell2mat(testIdx(l));
+        MI_partitions(l) = cell2mat(MI({S_p(test_index), S(test_index)},outputs_popMI,opts_MI));
+    end
+    MI_pop.(field_name).RBF = MI_partitions;
+
+    % Perform shufflung and compute MI for shuffled data
+    for shIdx = 1:nShuff
+        RSh = cell2mat(shuffle({R}));
+
         SVM_opts.svm_family = 'linear';
-        SVM_out = SVM({R,S}, outputs_SVM, SVM_opts);
+        SVM_out = SVM({RSh,S}, outputs_SVM, SVM_opts);
         S_p = SVM_out{1};
         testIdx = SVM_out{2};
         for l = 1:length(testIdx)
             test_index = cell2mat(testIdx(l));
             MI_partitions(l) = cell2mat(MI({S_p(test_index), S(test_index)},outputs_popMI,opts_MI));
-        end 
-        MI_pop.(field_name).linear = MI_partitions;
-        
+        end
+        MISh_pop.(field_name).linear = MI_partitions;
 
         SVM_opts.svm_family = 'RBF';
-        SVM_out = SVM({R,S}, outputs_SVM, SVM_opts);
+        SVM_out = SVM({RSh,S}, outputs_SVM, SVM_opts);
         S_p = SVM_out{1};
         testIdx = SVM_out{2};
         for l = 1:length(testIdx)
             test_index = cell2mat(testIdx(l));
             MI_partitions(l) = cell2mat(MI({S_p(test_index), S(test_index)},outputs_popMI,opts_MI));
-        end 
-        MI_pop.(field_name).RBF = MI_partitions;      
-
-        % Perform shufflung and compute MI for shuffled data
-        for shIdx = 1:nShuff
-            RSh = cell2mat(shuffle({R}));
-
-            SVM_opts.svm_family = 'linear';
-            SVM_out = SVM({RSh,S}, outputs_SVM, SVM_opts);
-            S_p = SVM_out{1};
-            testIdx = SVM_out{2};
-            for l = 1:length(testIdx)
-                test_index = cell2mat(testIdx(l));
-                MI_partitions(l) = cell2mat(MI({S_p(test_index), S(test_index)},outputs_popMI,opts_MI));
-            end
-            MISh_pop.(field_name).linear = MI_partitions;
-
-            SVM_opts.svm_family = 'RBF';
-            SVM_out = SVM({RSh,S}, outputs_SVM, SVM_opts);
-            S_p = SVM_out{1};
-            testIdx = SVM_out{2};
-            for l = 1:length(testIdx)
-                test_index = cell2mat(testIdx(l));
-                MI_partitions(l) = cell2mat(MI({S_p(test_index), S(test_index)},outputs_popMI,opts_MI));
-            end
-            MISh_pop.(field_name).RBF = MI_partitions;
-        end 
+        end
+        MISh_pop.(field_name).RBF = MI_partitions;
+    end
 end
 if ~exist('Figure2/Results', 'dir')
     mkdir('Figure2/Results');
 end
-filename = sprintf('Figure2/Results/Hippocampus_Results.mat');
+filename = sprintf('Figure2/Results/Hippocampus_Results_1.mat');
 save(filename);

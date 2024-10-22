@@ -51,9 +51,9 @@ FIT21_2_sh_max = max(FIT_shift_21_2_simple, FIT_shift_21_2_cond);
 % Identify Cluster for time-delay map 
 % -------------------------------------------------------------------------
 alpha = 0.01;
-cluster_mask_FIT12_1 = (clusterStat_pool(FIT_shift_12_1_mean, FIT12_1_sh_max, alpha, (1-alpha),0))';
-cluster_mask_FIT12_2 = (clusterStat_pool(FIT_shift_12_2_mean, FIT12_2_sh_max, alpha, (1-alpha),0))';
-cluster_mask_FIT21_2 = (clusterStat_pool(FIT_shift_21_2_mean, FIT21_2_sh_max, alpha, (1-alpha),0))';
+cluster_mask_FIT12_1 = (clusterStatistics(FIT_shift_12_1_mean, FIT12_1_sh_max, alpha, (1-alpha),0))';
+cluster_mask_FIT12_2 = (clusterStatistics(FIT_shift_12_2_mean, FIT12_2_sh_max, alpha, (1-alpha),0))';
+cluster_mask_FIT21_2 = (clusterStatistics(FIT_shift_21_2_mean, FIT21_2_sh_max, alpha, (1-alpha),0))';
 
 % -------------------------------------------------------------------------
 % Determine significance thresholds 
@@ -422,5 +422,5 @@ saveas(gcf, 'Plots/Combined_DelaySweep_FIT1_FIT2.svg');
 % -------------------------------------------------------------------------
 function data_out = btsp_shuffle_helper(data,n_boot)
     data_in = permute(data,[3 1 2 4]);
-    data_out = btstp_shuff_groupLevel(data_in,n_boot);
+    data_out = create_NullDistribution_groupLevel(data_in,n_boot);
 end

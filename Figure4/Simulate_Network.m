@@ -15,7 +15,7 @@ nReps = 10;
 nPopulations = 4;
 nSubpopulations = 2;
 nTrials = 200;
-nTimepoints = 30;
+nTimepoints = 20;
 delay = 5;
 stim_window = [3 12];
 stim_window_2 = [stim_window(1)+12 stim_window(2)+12]; 
@@ -23,9 +23,9 @@ null_samples = 300;
 delay_shifts = 1:19;
 
 % Initialize opts
-MI_opts.bias = 'qe';
+MI_opts.bias = 'shuffSub';
 MI_opts.xtrp = 10;
-MI_opts.shuff = 0;
+MI_opts.shuff = 30;
 MI_opts.parallel = 0;
 MI_opts.n_bins = {3};
 MI_opts.supressWarnings = true;
@@ -70,11 +70,11 @@ for repIdx = 1:nReps
     epsX = 0.5;
     for t=1:nTimepoints
         X(:,:,t,:) = epsX*randn(nPopulations, nSubpopulations,1, nTrials);
-        if (t >stim_window(1))  && (t <  stim_window(2))
+        if (t >stim_window(1))  && (t <=  stim_window(2))
             X(1,1,t,:) = squeeze(X(1,1,t,:)) +epsX*randn+2*(S1-1.5)';
             X(2,2,t,:) = squeeze(X(2,2,t,:)) +epsX*randn+2*(S2-1.5)';
         end
-        if (t > stim_window_2(1))  && (t <  stim_window_2(2))
+        if (t > stim_window_2(1))  && (t <=  stim_window_2(2))
             X(4,1,t,:) = squeeze(X(4,1,t,:)) +epsX*randn+2*(S1-1.5)';
         end
         if t > delay
@@ -83,13 +83,15 @@ for repIdx = 1:nReps
             X(3,1,t,:) = X(3,1,t,:) + X(1,1,t-delay,:);
             X(4,2,t,:) = X(4,2,t,:) + 3*X(3,2,t-delay,:); % noise transfer
         end
-        for neuron = 1:nPopulations
-            infoS1(neuron, t, repIdx) = cell2mat(MI({squeeze(sum(X(neuron,:,t,:),2))', S1}, {'I(A;B)'},MI_opts));
-            infoS2(neuron, t, repIdx) = cell2mat(MI({squeeze(sum(X(neuron,:,t,:),2))', S2}, {'I(A;B)'},MI_opts));  
-        end
+    end
+   
+    X = squeeze(sum(X,2));
+
+    for neuron = 1:nPopulations
+        infoS1(neuron, :, repIdx) = cell2mat(MI({X(neuron,:,:), S1}, {'I(A;B)'},MI_opts));
+        infoS2(neuron, :, repIdx) = cell2mat(MI({X(neuron,:,:), S2}, {'I(A;B)'},MI_opts));
     end
 
-    X = squeeze(sum(X,2));
     for d = 1:length(delay_shifts)
         delay_shift = delay_shifts(d);
         FIT_opts.tau = {delay_shift};

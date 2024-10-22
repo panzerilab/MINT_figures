@@ -104,28 +104,28 @@ for repIdx = 1:nReps
         % -------------------------------------------------------------------------
         % Step 2: Compute PID and Information Breakdown
         % -------------------------------------------------------------------------
-        pairlist = nchoosek(1:nNeurons,2);
-        MI_v = cell(length(pairlist), 5);
-        PID_v = cell(length(pairlist), 5);       
-        parfor pairi = 1:length(pairlist)
-            cell1 = pairlist(pairi,1);
-            cell2 = pairlist(pairi,2);
-            resp1 = R(cell1,:);
-            resp2 = R(cell2,:);
-            resp1(resp1>bdw_bins -1) = bdw_bins -1;
-            resp2(resp2>bdw_bins -1) = bdw_bins -1;
-            jointResp = [resp1;resp2];            
-            MI_v(pairi, :) = MI({jointResp,S}, outputs_MI, opts_MI);            
-            PID_v(pairi,:) = PID({resp1, resp2,S}, outputs_PID, opts_PID); %order = 'Syn', 'Red', 'Unq1', 'Unq2'
-        end
-        PID_result.(scLab)(:,:,repIdx) = PID_v;
-        for bdwIdx = 1:numel(info_bdw_terms)
-            bdwLab = info_bdw_terms{bdwIdx};
-            for pairi = 1:length(pairlist)
-                MI_breakdown.(scLab).(bdwLab)(repIdx,pairi) = MI_v{pairi,bdwIdx};
-            end
-        end        
-        % -------------------------------------------------------------------------
+        % pairlist = nchoosek(1:nNeurons,2);
+        % MI_v = cell(length(pairlist), 5);
+        % PID_v = cell(length(pairlist), 5);       
+        % parfor pairi = 1:length(pairlist)
+        %     cell1 = pairlist(pairi,1);
+        %     cell2 = pairlist(pairi,2);
+        %     resp1 = R(cell1,:);
+        %     resp2 = R(cell2,:);
+        %     resp1(resp1>bdw_bins -1) = bdw_bins -1;
+        %     resp2(resp2>bdw_bins -1) = bdw_bins -1;
+        %     jointResp = [resp1;resp2];            
+        %     MI_v(pairi, :) = MI({jointResp,S}, outputs_MI, opts_MI);            
+        %     PID_v(pairi,:) = PID({resp1, resp2,S}, outputs_PID, opts_PID); %order = 'Syn', 'Red', 'Unq1', 'Unq2'
+        % end
+        % PID_result.(scLab)(:,:,repIdx) = PID_v;
+        % for bdwIdx = 1:numel(info_bdw_terms)
+        %     bdwLab = info_bdw_terms{bdwIdx};
+        %     for pairi = 1:length(pairlist)
+        %         MI_breakdown.(scLab).(bdwLab)(repIdx,pairi) = MI_v{pairi,bdwIdx};
+        %     end
+        % end        
+        % % -------------------------------------------------------------------------
         % Step 2.3: Compute Population Information with SVM Decoder
         % -------------------------------------------------------------------------
         SVM_opts.svm_family = 'linear';
@@ -151,7 +151,7 @@ for repIdx = 1:nReps
 
         % Perform shufflung and compute MI for shuffled data
         for shIdx = 1:nShuff
-            RSh = cell2mat(shuffle({R}));
+            RSh = cell2mat(shuffle({R, S}), {'A_B'}); 
 
             SVM_opts.svm_family = 'linear';
             SVM_out = SVM({RSh,S}, outputs_SVM, SVM_opts);
