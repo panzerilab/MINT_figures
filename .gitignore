@@ -1,4 +1,4 @@
 *.mat
 *.svg
 *.png
-
+*.DS_Store
