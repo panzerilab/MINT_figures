@@ -1,2 +1,4 @@
-/Data_A1/
-**/Results/
+*.mat
+*.svg
+*.png
+
