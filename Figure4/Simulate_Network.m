@@ -15,7 +15,7 @@ nReps = 10;
 nPopulations = 4;
 nSubpopulations = 2;
 nTrials = 200;
-nTimepoints = 20;
+nTimepoints = 30;
 delay = 5;
 stim_window = [3 12];
 stim_window_2 = [stim_window(1)+12 stim_window(2)+12]; 
@@ -24,7 +24,6 @@ delay_shifts = 1:19;
 
 % Initialize opts
 MI_opts.bias = 'shuffSub';
-MI_opts.xtrp = 10;
 MI_opts.shuff = 30;
 MI_opts.parallel = 0;
 MI_opts.n_bins = {3};
@@ -32,25 +31,22 @@ MI_opts.supressWarnings = true;
 MI_opts.bin_method = {'eqpop','none'};
 
 TE_opts.bias = 'shuffSub';
-TE_opts.xtrp = 10;
 TE_opts.shuff = 30;
 TE_opts.n_bins = {3}; 
 TE_opts.bin_method = {'eqpop','eqpop'};
 TE_opts.tau = {-delay};
 TE_opts.supressWarnings = true;
-TE_opts.compute_nulldist = true;
+TE_opts.computeNulldist = true;
 TE_opts.singleTimepoint = true;
-TE_opts.cond_shuff = false;
 TE_opts.n_samples = nShuff;
 
-FIT_opts.bias = 'qe';
-FIT_opts.xtrp = 10;
+FIT_opts.bias = 'shuffSub';
+FIT_opts.shuff = 30;
 FIT_opts.n_bins = {3}; 
-FIT_opts.compute_nulldist = true;
+FIT_opts.computeNulldist = true;
 FIT_opts.n_samples = nShuff;
-FIT_opts.cond_var = {'S'};
-FIT_opts.cond_shuff = [true, false];
-FIT_opts.shuff_var = {'A'};
+FIT_opts.shuffling = {'A','A_C'};
+FIT_opts.dim_shuffle = {'Trials'};
 FIT_opts.supressWarnings = true;
 FIT_opts.bin_method = {'eqpop','eqpop', 'none'};
 FIT_opts.singleTimepoint = true;
@@ -128,7 +124,7 @@ for repIdx = 1:nReps
         FIT12_2_sh.simple(d,:,repIdx,:) = FITshuff_12_2_simple_slice;
         FIT12_2_sh.cond(d,:,repIdx,:) = FITshuff_12_2_cond_slice;        
         FIT21_2_sh.simple(d,:,repIdx,:) = FITshuff_21_2_simple_slice;
-        FIT21_2_sh.cond(d,:,repIdx,:) = FITshuff_21_2_cond_slice;
+        FIT21_ 2_sh.cond(d,:,repIdx,:) = FITshuff_21_2_cond_slice;
     end
     
     % compute FIT and TE for all pairs of populations
@@ -142,8 +138,8 @@ for repIdx = 1:nReps
                  [FIT_values, ~, FIT_nullDist] = FIT({X(pop1,:,:),X(pop2,:,:),S1},{'FIT(A->B;S)', 'FIT(B->A;S)'},FIT_opts);               
                   FIT1(pop1, pop2, repIdx) = FIT_values{1};
                   FIT1(pop2, pop1, repIdx) = FIT_values{2};
-                  FITshuff_simple = cell2mat(FIT_nullDist{1});
-                  FITshuff_cond = cell2mat(FIT_nullDist{2});
+                  FITshuff_simple = FIT_nullDist.A;
+                  FITshuff_cond = FIT_nullDist.A_C;
                   FIT1_sh.simple(pop1, pop2, repIdx, :) =  FITshuff_simple(:,1);
                   FIT1_sh.simple(pop2, pop1, repIdx, :) =  FITshuff_simple(:,2);
                   FIT1_sh.conditioned(pop1, pop2, repIdx, :) =  FITshuff_cond(:,1);
@@ -152,17 +148,17 @@ for repIdx = 1:nReps
                   [FIT_values, ~, FIT_nullDist] = FIT({X(pop1,:,:),X(pop2,:,:),S2},{'FIT(A->B;S)', 'FIT(B->A;S)'},FIT_opts);
                   FIT2(pop1, pop2, repIdx) = FIT_values{1};
                   FIT2(pop2, pop1, repIdx) = FIT_values{2};
-                  FIT12_shuff = cell2mat(FIT_nullDist{1});
-                  FIT21_shuff = cell2mat(FIT_nullDist{2});
-                  FIT2_sh.simple(pop1, pop2, repIdx, :) =  FIT12_shuff(:,2);
-                  FIT2_sh.simple(pop2, pop1, repIdx, :) =  FIT21_shuff(:,2);
-                  FIT2_sh.conditioned(pop1, pop2, repIdx, :) =  FIT12_shuff(:,1);
-                  FIT2_sh.conditioned(pop2, pop1, repIdx, :) =  FIT21_shuff(:,1);
+                  FITshuff_simple = FIT_nullDist.A;
+                  FITshuff_cond = FIT_nullDist.A_C;
+                  FIT2_sh.simple(pop1, pop2, repIdx, :) =  FITshuff_simple(:,1);
+                  FIT2_sh.simple(pop2, pop1, repIdx, :) =  FITshuff_simple(:,2); 
+                  FIT2_sh.conditioned(pop1, pop2, repIdx, :) =  FITshuff_cond(:,1);
+                  FIT2_sh.conditioned(pop2, pop1, repIdx, :) =  FITshuff_cond(:,2);
 
                   [TE_values, ~, TE_nullDist] =TE({X(pop1,:,:),X(pop2,:,:)},{'TE(A->B)','TE(B->A)'}, TE_opts);
                   TE_v(pop1, pop2, repIdx) = TE_values{1};
                   TE_v(pop2, pop1, repIdx) = TE_values{2};
-                  TEshuff_simple = cell2mat(TE_nullDist);
+                  TEshuff_simple = TE_nullDist;
                   TE_sh.simple(pop1, pop2, repIdx, :) =  TEshuff_simple(:,1);
                   TE_sh.simple(pop2, pop1, repIdx, :) =  TEshuff_simple(:,2);                
             end
@@ -172,8 +168,8 @@ end
 if ~exist('Results', 'dir')
     mkdir('Results');
 end
-currentDateTime = datetime('now', 'Format', 'yyyy_MM_dd_HH_mm_ss');
-filename = sprintf('Results/Simulation_Results_%s.mat', currentDateTime);
+currentDateTime = datetime('now', 'Format', 'dd_MM_yyyy');
+filename = sprintf('Results/Simulation_Figure4_%s.mat', currentDateTime);
 save(filename);
 
 

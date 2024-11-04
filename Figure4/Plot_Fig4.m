@@ -1,6 +1,6 @@
 
 clc, clear, close all; 
-load('Results/FIT_results_1410.mat')
+load('Results/FIT_results_1410.mat') % replace with your Results name
 rng(0)
 
 % -------------------------------------------------------------------------
@@ -422,5 +422,5 @@ saveas(gcf, 'Plots/Combined_DelaySweep_FIT1_FIT2.svg');
 % -------------------------------------------------------------------------
 function data_out = btsp_shuffle_helper(data,n_boot)
     data_in = permute(data,[3 1 2 4]);
-    data_out = create_NullDistribution_groupLevel(data_in,n_boot);
+    data_out = create_nullDist_groupLevel(data_in,n_boot);
 end
