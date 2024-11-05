@@ -1,6 +1,6 @@
 clear; clc
 rng(0);
-load('Figure2/Hippocampus_data.mat');
+load('Figure2/CA1_data.mat');
 % -------------------------------------------------------------------------
 % Define optional Inputs for MI and PID
 % ------------------------------------------------------------------------
@@ -28,6 +28,7 @@ reqOutputs_popMI = {'I(A;B)'};
 
 % Info breakdown opts
 info_bdw_terms = {'Joint','ILIN','ISS','ICI','ICD'};
+field_names = fieldnames(neuro_struct);
 bdw_bins = 5;% number of bins used to discretize spike counts for information breakdown calculations
 % -------------------------------------------------------------------------
 % Step 1: Load Subject data
@@ -36,8 +37,8 @@ for i = 1:length(field_names)
     % Extract data
     field_name = field_names{i, 1};
     disp(['Subject ',field_name])
-    S = Hippocampus_data.(field_name).Position;
-    R = Hippocampus_data.(field_name).R_neuron_binned;
+    S = neuro_struct.(field_name).Positions;
+    R = double(neuro_struct.(field_name).Binary);
     [nNeurons, nTrials] = size(R);
     nPairs = nNeurons*(nNeurons-1)/2;
     % -------------------------------------------------------------------------
